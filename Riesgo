@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Búsqueda de Matrícula en PDF</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f4f4f4;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      margin: 25px 0 10px 0;
+    }
+
+    #controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    #matricula {
+      font-size: 1.5em;
+      padding: 8px 12px;
+      width: 280px;
+      text-align: center;
+      border: 2px solid #ccc;
+      border-radius: 10px;
+      outline: none;
+    }
+
+    #matricula:focus {
+      border-color: #007bff;
+    }
+
+    button {
+      font-size: 1em;
+      padding: 10px 18px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      background: #007bff;
+      color: white;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    #actions,
+    #nav-controls,
+    #search-nav {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    #page-info {
+      margin-top: 5px;
+      font-weight: bold;
+    }
+
+    #pdf-upload {
+      display: none;
+    }
+
+    #pdf-viewer {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      flex-grow: 1;
+      margin-top: 20px;
+      margin-bottom: 40px;
+    }
+
+    canvas {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: white;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      max-width: 95%;
+      height: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Búsqueda de Matrícula en PDF</h1>
+
+  <div id="controls">
+    <button id="load-pdf">📄 Cargar PDF</button>
+    <input type="file" id="pdf-upload" accept="application/pdf" />
+
+    <div id="actions">
+      <button id="pegar">📋 Pegar</button>
+      <input type="text" id="matricula" placeholder="Introduce matrícula (ej: 1234ABC)" />
+      <button id="buscar">Buscar</button>
+    </div>
+
+    <div id="nav-controls">
+      <button id="prev">⬅️ Página anterior</button>
+      <button id="next">➡️ Página siguiente</button>
+      <button id="zoom-out">➖ Zoom -</button>
+      <button id="zoom-in">➕ Zoom +</button>
+    </div>
+
+    <div id="search-nav" style="display: none;">
+      <button id="prev-result">⬅️ Resultado anterior</button>
+      <button id="next-result">➡️ Siguiente resultado</button>
+      <span id="result-info"></span>
+    </div>
+
+    <div id="page-info">Página <span id="page-num">-</span> / <span id="page-count">-</span></div>
+  </div>
+
+  <div id="pdf-viewer">
+    <canvas id="pdf-canvas"></canvas>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById("pdf-upload");
+    const loadPdfBtn = document.getElementById("load-pdf");
+    const searchBtn = document.getElementById("buscar");
+    const pasteBtn = document.getElementById("pegar");
+    const matriculaInput = document.getElementById("matricula");
+    const canvas = document.getElementById("pdf-canvas");
+    const ctx = canvas.getContext("2d");
+
+    const prevBtn = document.getElementById("prev");
+    const nextBtn = document.getElementById("next");
+    const zoomInBtn = document.getElementById("zoom-in");
+    const zoomOutBtn = document.getElementById("zoom-out");
+    const pageNumEl = document.getElementById("page-num");
+    const pageCountEl = document.getElementById("page-count");
+
+    const prevResultBtn = document.getElementById("prev-result");
+    const nextResultBtn = document.getElementById("next-result");
+    const searchNav = document.getElementById("search-nav");
+    const resultInfo = document.getElementById("result-info");
+
+    let pdfDoc = null;
+    let currentPage = 1;
+    let zoom = 1.2;
+    let results = [];
+    let currentResultIndex = 0;
+
+    loadPdfBtn.addEventListener("click", () => fileInput.click());
+
+    fileInput.addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async function () {
+        const typedArray = new Uint8Array(this.result);
+        pdfDoc = await pdfjsLib.getDocument({ data: typedArray }).promise;
+        currentPage = 1;
+        pageCountEl.textContent = pdfDoc.numPages;
+        renderPage(currentPage);
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    async function renderPage(num, highlight = null) {
+      const page = await pdfDoc.getPage(num);
+      const viewport = page.getViewport({ scale: zoom });
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+
+      const renderContext = { canvasContext: ctx, viewport };
+      await page.render(renderContext).promise;
+
+      if (highlight) {
+        const textContent = await page.getTextContent();
+        ctx.fillStyle = "rgba(255, 255, 0, 0.4)";
+        textContent.items.forEach((item) => {
+          const text = item.str.toUpperCase();
+          if (text.includes(highlight)) {
+            const transform = pdfjsLib.Util.transform(viewport.transform, item.transform);
+            const x = transform[4];
+            const y = transform[5] - item.height;
+            ctx.fillRect(x, y, item.width, item.height);
+          }
+        });
+      }
+      pageNumEl.textContent = num;
+    }
+
+    searchBtn.addEventListener("click", async () => {
+      if (!pdfDoc) return alert("Primero carga un archivo PDF.");
+      const searchText = matriculaInput.value.trim().toUpperCase();
+      if (!searchText) return alert("Introduce una matrícula para buscar.");
+
+      results = [];
+      currentResultIndex = 0;
+
+      for (let i = 1; i <= pdfDoc.numPages; i++) {
+        const page = await pdfDoc.getPage(i);
+        const textContent = await page.getTextContent();
+        const text = textContent.items.map(i => i.str.toUpperCase()).join(" ");
+        if (text.includes(searchText)) results.push(i);
+      }
+
+      if (results.length === 0) {
+        alert("Matrícula no encontrada en el PDF.");
+        searchNav.style.display = "none";
+        return;
+      }
+
+      currentResultIndex = 0;
+      currentPage = results[currentResultIndex];
+      renderPage(currentPage, searchText);
+
+      searchNav.style.display = "flex";
+      updateResultInfo(searchText);
+    });
+
+    function updateResultInfo(searchText) {
+      resultInfo.textContent = `Resultado ${currentResultIndex + 1} de ${results.length} (pág. ${results[currentResultIndex]})`;
+      renderPage(results[currentResultIndex], searchText);
+    }
+
+    prevResultBtn.addEventListener("click", () => {
+      if (results.length === 0) return;
+      currentResultIndex = (currentResultIndex - 1 + results.length) % results.length;
+      currentPage = results[currentResultIndex];
+      updateResultInfo(matriculaInput.value.trim().toUpperCase());
+    });
+
+    nextResultBtn.addEventListener("click", () => {
+      if (results.length === 0) return;
+      currentResultIndex = (currentResultIndex + 1) % results.length;
+      currentPage = results[currentResultIndex];
+      updateResultInfo(matriculaInput.value.trim().toUpperCase());
+    });
+
+    prevBtn.addEventListener("click", () => {
+      if (!pdfDoc || currentPage <= 1) return;
+      currentPage--;
+      renderPage(currentPage);
+    });
+
+    nextBtn.addEventListener("click", () => {
+      if (!pdfDoc || currentPage >= pdfDoc.numPages) return;
+      currentPage++;
+      renderPage(currentPage);
+    });
+
+    zoomInBtn.addEventListener("click", () => {
+      if (!pdfDoc) return;
+      zoom = Math.min(zoom + 0.2, 3.0);
+      renderPage(currentPage);
+    });
+
+    zoomOutBtn.addEventListener("click", () => {
+      if (!pdfDoc) return;
+      zoom = Math.max(zoom - 0.2, 0.6);
+      renderPage(currentPage);
+    });
+
+    pasteBtn.addEventListener("click", async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        matriculaInput.value = text.trim();
+      } catch {
+        alert("No se pudo acceder al portapapeles. Da permisos al navegador.");
+      }
+    });
+  </script>
+</body>
+</html>
