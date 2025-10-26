@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Búsqueda de Matrícula en PDF</title>
+  <title>Búsqueda en PDF</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
   <style>
     body {
@@ -96,32 +96,30 @@
   </style>
 </head>
 <body>
-  <h1>Búsqueda de Matrícula en PDF</h1>
+  <h1>Búsqueda en PDF</h1>
 
   <div id="controls">
-    <button id="load-pdf">📄 Cargar PDF</button>
+    <button id="load-pdf">Cargar PDF</button>
     <input type="file" id="pdf-upload" accept="application/pdf" />
 
     <div id="actions">
-      <button id="pegar">📋 Pegar</button>
+      <button id="pegar">Pegar</button>
       <input type="text" id="matricula" placeholder="Introduce matrícula (ej: 1234ABC)" />
       <button id="buscar">Buscar</button>
     </div>
 
     <div id="nav-controls">
-      <button id="prev">⬅️ Página anterior</button>
-      <button id="next">➡️ Página siguiente</button>
-      <button id="zoom-out">➖ Zoom -</button>
-      <button id="zoom-in">➕ Zoom +</button>
+      <button id="prev">Pág anterior</button>
+      <button id="next">Pág siguiente</button>
     </div>
 
     <div id="search-nav" style="display: none;">
-      <button id="prev-result">⬅️ Resultado anterior</button>
-      <button id="next-result">➡️ Siguiente resultado</button>
+      <button id="prev-result">Result anterior</button>
+      <button id="next-result"> Result Siguiente</button>
       <span id="result-info"></span>
     </div>
 
-    <div id="page-info">Página <span id="page-num">-</span> / <span id="page-count">-</span></div>
+    <div id="page-info">Pág <span id="page-num">-</span> / <span id="page-count">-</span></div>
   </div>
 
   <div id="pdf-viewer">
